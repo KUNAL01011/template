@@ -294,23 +294,26 @@ export async function refresh(rawRefreshToken: string) {
 
   const newAccessToken = await signAccessToken(payload.userId);
 
-  // Batch transaction: create new token + revoke old one atomically.
-  // Uses the sequential array form (not interactive async tx) to avoid
-  // Prisma's relation validation on the plain-string replacedByTokenId field.
-  await prisma.$transaction([
-    prisma.refreshToken.create({
+  // FIX: Use the interactive callback form of $transaction instead of the
+  // array/batch form. The array form pre-builds Prisma promise objects before
+  // passing them in — with Prisma 6's new `prisma-client` generator this causes
+  // the transaction to throw because the operations are already "pending" by the
+  // time $transaction receives them. The callback form builds operations inside
+  // the transaction context (tx) and works correctly across all Prisma versions.
+  await prisma.$transaction(async tx => {
+    await tx.refreshToken.create({
       data: {
         userId: payload.userId,
         tokenHash: newRefreshTokenHash,
         expiresAt: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000),
         familyId: storedToken.familyId,
       },
-    }),
-    prisma.refreshToken.update({
+    });
+    await tx.refreshToken.update({
       where: { id: storedToken.id },
       data: { revokedAt: new Date() },
-    }),
-  ]);
+    });
+  });
 
   return {
     accessToken: newAccessToken,

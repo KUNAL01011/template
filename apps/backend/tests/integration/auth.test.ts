@@ -189,9 +189,18 @@ describe("POST /api/auth/login", () => {
     expect(res.body.data.user.email).toBe(TEST_USER.email);
 
     const cookies = getCookies(res);
-    expect(cookies.some(c => c.startsWith("accessToken="))).toBe(true);
-    expect(cookies.some(c => c.startsWith("refreshToken="))).toBe(true);
-    expect(cookies.every(c => c.includes("HttpOnly"))).toBe(true);
+
+    // FIX: Only assert HttpOnly on the actual auth token cookies.
+    // The `session` cookie is intentionally a JS-readable client-side flag
+    // (no httpOnly) so the frontend can detect login state without a round-trip.
+    // Using cookies.every() would fail because of that cookie — filter first.
+    const authCookies = cookies.filter(
+      c => c.startsWith("accessToken=") || c.startsWith("refreshToken=")
+    );
+    expect(authCookies.length).toBe(2);
+    expect(authCookies.every(c => c.toLowerCase().includes("httponly"))).toBe(
+      true
+    );
   });
 
   it("401 — rejects wrong password", async () => {
