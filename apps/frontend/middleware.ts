@@ -8,23 +8,20 @@ const PUBLIC_ROUTES = [
   "/reset-password",
 ];
 
+// middleware.ts
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Backend sets "accessToken" (not "access_token")
-  const token = request.cookies.get("accessToken")?.value;
+  // Check long-lived session flag instead of short-lived accessToken
+  const session = request.cookies.get("session")?.value;
 
-  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
-    pathname.startsWith(route)
-  );
+  const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
 
-  // Authenticated user hitting auth pages → send to dashboard
-  if (token && isPublicRoute) {
+  if (session && isPublicRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // Unauthenticated user hitting protected page → send to login
-  if (!token && !isPublicRoute) {
+  if (!session && !isPublicRoute) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);

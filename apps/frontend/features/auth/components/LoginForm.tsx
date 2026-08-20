@@ -7,10 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { isAxiosError } from "axios";
 
 import { useLogin } from "../hooks/useAuth";
-import {
-  loginSchema,
-  type LoginFormData,
-} from "../schemas/auth.schemas";
+import { loginSchema, type LoginFormData } from "../schemas/auth.schemas";
 import { FormField, ErrorBanner, SubmitButton } from "./FormField";
 
 function extractErrorMessage(error: unknown): string {
@@ -19,7 +16,8 @@ function extractErrorMessage(error: unknown): string {
     if (typeof msg === "string") return msg;
     if (error.response?.status === 401) return "Invalid email or password";
     if (error.response?.status === 403) return "Please verify your email first";
-    if (error.response?.status === 429) return "Too many attempts. Try again later.";
+    if (error.response?.status === 429)
+      return "Too many attempts. Try again later.";
   }
   return "Unable to sign in. Please try again.";
 }
@@ -76,14 +74,6 @@ export function LoginForm() {
         placeholder="••••••••"
         error={errors.password?.message}
         disabled={loginMutation.isPending}
-        rightLabel={
-          <Link
-            href="/forgot-password"
-            className="text-xs text-[var(--primary)] hover:underline"
-          >
-            Forgot password?
-          </Link>
-        }
         {...register("password")}
       />
 

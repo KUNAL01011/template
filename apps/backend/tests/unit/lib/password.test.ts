@@ -4,7 +4,7 @@ import { hashPassword, verifyPassword } from "../../../src/lib/password.js";
 describe("hashPassword", () => {
   it("produces a bcrypt hash", async () => {
     const hash = await hashPassword("MyPassword123!");
-    expect(hash).toMatch(/^\$2[ab]\$12\$/);
+    expect(hash).toMatch(/^\$argon2id\$/);
   });
 
   it("produces different hashes for same input (salt)", async () => {

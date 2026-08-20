@@ -50,18 +50,22 @@ export async function register(input: RegisterInput) {
     });
 
     if (user.emailVerified) {
-      throw new AppError("EMAIL_ALREADY_REGISTERED", "Email already registered", 409);
+      throw new AppError(
+        "EMAIL_ALREADY_REGISTERED",
+        "Email already registered",
+        409
+      );
     }
 
     userId = user.id;
   } catch (err) {
-    // Re-throw AppError as-is
     if (err instanceof AppError) throw err;
-    if (
-      err instanceof PrismaClientKnownRequestError &&
-      err.code === "P2002"
-    ) {
-      throw new AppError("EMAIL_ALREADY_REGISTERED", "Email already registered", 409);
+    if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+      throw new AppError(
+        "EMAIL_ALREADY_REGISTERED",
+        "Email already registered",
+        409
+      );
     }
     throw err;
   }
@@ -69,7 +73,6 @@ export async function register(input: RegisterInput) {
   const verificationToken = await signEmailVerificationToken(userId);
 
   // Fire-and-forget: email goes into the queue, response returns immediately.
-  // The user gets their verificationToken without waiting for Resend.
   sendVerificationEmail(email, otp);
 
   return { verificationToken };
@@ -92,7 +95,11 @@ export async function verifyEmail(userId: string, input: VerifyEmailInput) {
   }
 
   if (user.emailVerified) {
-    throw new AppError("EMAIL_ALREADY_VERIFIED", "Email is already verified", 409);
+    throw new AppError(
+      "EMAIL_ALREADY_VERIFIED",
+      "Email is already verified",
+      409
+    );
   }
 
   if (!user.otpHash || !user.otpExpiresAt) {
@@ -100,7 +107,11 @@ export async function verifyEmail(userId: string, input: VerifyEmailInput) {
   }
 
   if (new Date() > user.otpExpiresAt) {
-    throw new AppError("OTP_EXPIRED", "OTP has expired. Request a new one.", 400);
+    throw new AppError(
+      "OTP_EXPIRED",
+      "OTP has expired. Request a new one.",
+      400
+    );
   }
 
   const isValid = await verifyPassword(input.otp, user.otpHash);
@@ -130,7 +141,11 @@ export async function resendOtp(userId: string) {
   }
 
   if (user.emailVerified) {
-    throw new AppError("EMAIL_ALREADY_VERIFIED", "Email is already verified", 409);
+    throw new AppError(
+      "EMAIL_ALREADY_VERIFIED",
+      "Email is already verified",
+      409
+    );
   }
 
   // Block resend if OTP was issued < 1 minute ago
@@ -176,7 +191,8 @@ export async function login(input: LoginInput) {
   });
 
   // Constant-time comparison even for missing users — prevents enumeration via timing
-  const dummyHash = "$2b$12$invalidhashpadding000000000000000000000000000000000000";
+  const dummyHash =
+    "$2b$12$invalidhashpadding000000000000000000000000000000000000";
   const passwordValid = user
     ? await verifyPassword(input.password, user.passwordHash)
     : await verifyPassword(input.password, dummyHash).then(() => false);
@@ -195,10 +211,8 @@ export async function login(input: LoginInput) {
   }
 
   const familyId = crypto.randomUUID();
-  const { token: refreshToken, hash: refreshTokenHash } = await signRefreshToken(
-    user.id,
-    familyId
-  );
+  const { token: refreshToken, hash: refreshTokenHash } =
+    await signRefreshToken(user.id, familyId);
   const accessToken = await signAccessToken(user.id);
 
   await prisma.refreshToken.create({
@@ -225,7 +239,11 @@ export async function refresh(rawRefreshToken: string) {
   try {
     payload = await verifyRefreshToken(rawRefreshToken);
   } catch {
-    throw new AppError("INVALID_REFRESH_TOKEN", "Invalid or expired refresh token", 401);
+    throw new AppError(
+      "INVALID_REFRESH_TOKEN",
+      "Invalid or expired refresh token",
+      401
+    );
   }
 
   const tokenHash = crypto
@@ -233,11 +251,16 @@ export async function refresh(rawRefreshToken: string) {
     .update(rawRefreshToken)
     .digest("hex");
 
-  const storedToken = await prisma.refreshToken.findUnique({ where: { tokenHash } });
+  const storedToken = await prisma.refreshToken.findUnique({
+    where: { tokenHash },
+  });
 
+  // Token doesn't exist → possible reuse/deleted token
   if (!storedToken) {
-    // Reuse detected — nuke the entire family
-    await prisma.refreshToken.deleteMany({ where: { familyId: payload.familyId } });
+    await prisma.refreshToken.deleteMany({
+      where: { familyId: payload.familyId },
+    });
+
     throw new AppError(
       "REFRESH_TOKEN_REUSE",
       "Refresh token reuse detected. Please login again.",
@@ -245,17 +268,36 @@ export async function refresh(rawRefreshToken: string) {
     );
   }
 
-  if (storedToken.revokedAt || new Date() > storedToken.expiresAt) {
-    throw new AppError("INVALID_REFRESH_TOKEN", "Refresh token is expired or revoked", 401);
+  // Old/revoked token used again → reuse attack
+  if (storedToken.revokedAt) {
+    await prisma.refreshToken.deleteMany({
+      where: { familyId: storedToken.familyId },
+    });
+
+    throw new AppError(
+      "REFRESH_TOKEN_REUSE",
+      "Refresh token reuse detected. Please login again.",
+      401
+    );
   }
 
-  const { token: newRefreshToken, hash: newRefreshTokenHash } = await signRefreshToken(
-    payload.userId,
-    storedToken.familyId
-  );
+  if (new Date() > storedToken.expiresAt) {
+    throw new AppError(
+      "INVALID_REFRESH_TOKEN",
+      "Refresh token is expired",
+      401
+    );
+  }
+
+  const { token: newRefreshToken, hash: newRefreshTokenHash } =
+    await signRefreshToken(payload.userId, storedToken.familyId);
+
   const newAccessToken = await signAccessToken(payload.userId);
 
-  const [newToken] = await prisma.$transaction([
+  // Batch transaction: create new token + revoke old one atomically.
+  // Uses the sequential array form (not interactive async tx) to avoid
+  // Prisma's relation validation on the plain-string replacedByTokenId field.
+  await prisma.$transaction([
     prisma.refreshToken.create({
       data: {
         userId: payload.userId,
@@ -270,12 +312,10 @@ export async function refresh(rawRefreshToken: string) {
     }),
   ]);
 
-  await prisma.refreshToken.update({
-    where: { id: storedToken.id },
-    data: { replacedByTokenId: newToken.id },
-  });
-
-  return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+  return {
+    accessToken: newAccessToken,
+    refreshToken: newRefreshToken,
+  };
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────

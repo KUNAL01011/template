@@ -9,8 +9,6 @@ import type {
   VerifyEmailResponseData,
   MeResponseData,
   MessageResponseData,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
 } from "../types/auth.types";
 
 // ── Register ──────────────────────────────────────────────────────────────
@@ -67,9 +65,8 @@ export async function login(
 // ── Refresh ───────────────────────────────────────────────────────────────
 
 export async function refreshToken(): Promise<ApiSuccess<MessageResponseData>> {
-  const res = await api.post<ApiSuccess<MessageResponseData>>(
-    "/api/auth/refresh"
-  );
+  const res =
+    await api.post<ApiSuccess<MessageResponseData>>("/api/auth/refresh");
   return res.data;
 }
 
@@ -83,29 +80,5 @@ export async function logout(): Promise<void> {
 
 export async function getCurrentUser(): Promise<ApiSuccess<MeResponseData>> {
   const res = await api.get<ApiSuccess<MeResponseData>>("/api/auth/me");
-  return res.data;
-}
-
-// ── Forgot Password (placeholder — add backend route when ready) ───────────
-
-export async function forgotPassword(
-  data: ForgotPasswordRequest
-): Promise<ApiSuccess<MessageResponseData>> {
-  const res = await api.post<ApiSuccess<MessageResponseData>>(
-    "/api/auth/forgot-password",
-    data
-  );
-  return res.data;
-}
-
-// ── Reset Password (placeholder — add backend route when ready) ────────────
-
-export async function resetPassword(
-  data: ResetPasswordRequest
-): Promise<ApiSuccess<MessageResponseData>> {
-  const res = await api.post<ApiSuccess<MessageResponseData>>(
-    "/api/auth/reset-password",
-    data
-  );
   return res.data;
 }

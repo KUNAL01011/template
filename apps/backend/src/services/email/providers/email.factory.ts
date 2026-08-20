@@ -1,8 +1,8 @@
 import { env } from "../../../config/env.js";
 import type { IEmailProvider } from "./email-provider.interface.js";
-import { ResendProvider } from "./resend.provider.js";
+// import { ResendProvider } from "./resend.provider.js";
 import { ConsoleProvider } from "./console.provider.js";
-// import { NodemailerProvider } from "./nodemailer.provider.js"; // ← swap here
+import { NodemailerProvider } from "./nodemailer.provider.js"; // ← swap here
 export function createEmailProvider(): IEmailProvider {
   if (env.NODE_ENV === "test") {
     return new ConsoleProvider();
@@ -12,5 +12,5 @@ export function createEmailProvider(): IEmailProvider {
     return new ConsoleProvider();
   }
 
-  return new ResendProvider();
+  return new NodemailerProvider();
 }

@@ -55,12 +55,3 @@ export interface RegisterRequest {
 export interface VerifyEmailRequest {
   otp: string;
 }
-
-export interface ForgotPasswordRequest {
-  email: string;
-}
-
-export interface ResetPasswordRequest {
-  token: string;
-  password: string;
-}

@@ -1,10 +1,16 @@
+import { env } from "@/config/env.js";
 import rateLimit from "express-rate-limit";
+
+const isTest = env.NODE_ENV === "test";
+
+const skipRateLimitInTests = () => isTest;
 
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: skipRateLimitInTests,
   message: {
     success: false,
     error: {
@@ -19,6 +25,7 @@ export const authRateLimiter = rateLimit({
   limit: 20,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: skipRateLimitInTests,
   message: {
     success: false,
     error: {
@@ -33,6 +40,7 @@ export const otpRateLimiter = rateLimit({
   limit: 5,
   standardHeaders: "draft-8",
   legacyHeaders: false,
+  skip: skipRateLimitInTests,
   message: {
     success: false,
     error: {

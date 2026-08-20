@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getCurrentUser,
   login,
@@ -12,8 +8,6 @@ import {
   register,
   verifyEmail,
   resendOtp,
-  forgotPassword,
-  resetPassword,
   refreshToken,
 } from "../api/auth.api";
 import { authKeys } from "../api/auth.keys";
@@ -21,8 +15,6 @@ import type {
   LoginRequest,
   RegisterRequest,
   VerifyEmailRequest,
-  ForgotPasswordRequest,
-  ResetPasswordRequest,
 } from "../types/auth.types";
 
 // ── Current user ──────────────────────────────────────────────────────────
@@ -47,7 +39,7 @@ export function useLogin() {
     mutationFn: (data: LoginRequest) => login(data),
     onSuccess: async () => {
       // Force a fresh /me fetch so AuthProvider has the user immediately
-      await queryClient.invalidateQueries({ queryKey: authKeys.currentUser() });
+      await queryClient.refetchQueries({ queryKey: authKeys.currentUser() });
     },
   });
 }
@@ -102,19 +94,5 @@ export function useLogout() {
 export function useRefreshToken() {
   return useMutation({
     mutationFn: refreshToken,
-  });
-}
-
-// ── Forgot / Reset password ───────────────────────────────────────────────
-
-export function useForgotPassword() {
-  return useMutation({
-    mutationFn: (data: ForgotPasswordRequest) => forgotPassword(data),
-  });
-}
-
-export function useResetPassword() {
-  return useMutation({
-    mutationFn: (data: ResetPasswordRequest) => resetPassword(data),
   });
 }

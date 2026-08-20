@@ -1,18 +1,3 @@
-/**
- * Auth integration tests
- * Uses supertest against the real Express app with a real test database.
- * Run with: vitest --config vitest.config.ts
- *
- * Required .env.test:
- *   DATABASE_URL=postgresql://.../<test_db>
- *   DIRECT_URL=...
- *   ACCESS_SECRET=<min 32 chars>
- *   REFRESH_SECRET=<min 32 chars>
- *   OTP_VERIFY_SECRET=<min 32 chars>
- *   RESEND_API_KEY=re_test_xxx (mocked below, value irrelevant)
- *   OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
- */
-
 import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import request, { type Response } from "supertest";
 import app from "../../src/app.js";
@@ -80,7 +65,9 @@ describe("POST /api/auth/register", () => {
   });
 
   it("409 — rejects already-verified email", async () => {
-    const registerRes = await request(app).post("/api/auth/register").send(TEST_USER);
+    const registerRes = await request(app)
+      .post("/api/auth/register")
+      .send(TEST_USER);
     const { verificationToken } = registerRes.body.data;
 
     await request(app)
@@ -202,9 +189,9 @@ describe("POST /api/auth/login", () => {
     expect(res.body.data.user.email).toBe(TEST_USER.email);
 
     const cookies = getCookies(res);
-    expect(cookies.some((c) => c.startsWith("accessToken="))).toBe(true);
-    expect(cookies.some((c) => c.startsWith("refreshToken="))).toBe(true);
-    expect(cookies.every((c) => c.includes("HttpOnly"))).toBe(true);
+    expect(cookies.some(c => c.startsWith("accessToken="))).toBe(true);
+    expect(cookies.some(c => c.startsWith("refreshToken="))).toBe(true);
+    expect(cookies.every(c => c.includes("HttpOnly"))).toBe(true);
   });
 
   it("401 — rejects wrong password", async () => {
@@ -226,10 +213,12 @@ describe("POST /api/auth/login", () => {
 
   it("403 — rejects unverified user", async () => {
     const unverifiedEmail = `unverified+${Date.now()}@example.com`;
-    await request(app).post("/api/auth/register").send({
-      ...TEST_USER,
-      email: unverifiedEmail,
-    });
+    await request(app)
+      .post("/api/auth/register")
+      .send({
+        ...TEST_USER,
+        email: unverifiedEmail,
+      });
 
     const res = await request(app)
       .post("/api/auth/login")
@@ -258,7 +247,7 @@ describe("POST /api/auth/refresh", () => {
       .post("/api/auth/login")
       .send({ email: TEST_USER.email, password: TEST_USER.password });
 
-    refreshTokenCookie = getCookies(loginRes).find((c) =>
+    refreshTokenCookie = getCookies(loginRes).find(c =>
       c.startsWith("refreshToken=")
     )!;
   });
@@ -275,8 +264,8 @@ describe("POST /api/auth/refresh", () => {
     expect(res.status).toBe(200);
 
     const newCookies = getCookies(res);
-    expect(newCookies.some((c) => c.startsWith("accessToken="))).toBe(true);
-    expect(newCookies.some((c) => c.startsWith("refreshToken="))).toBe(true);
+    expect(newCookies.some(c => c.startsWith("accessToken="))).toBe(true);
+    expect(newCookies.some(c => c.startsWith("refreshToken="))).toBe(true);
   });
 
   it("401 — rejects missing cookie", async () => {
@@ -290,6 +279,7 @@ describe("POST /api/auth/refresh", () => {
       .post("/api/auth/refresh")
       .set("Cookie", refreshTokenCookie);
 
+    console.log("REFRESH RESPONSE:", firstRefresh.status, firstRefresh.body);
     expect(firstRefresh.status).toBe(200);
 
     const reuseRes = await request(app)
@@ -317,7 +307,7 @@ describe("POST /api/auth/logout", () => {
       .post("/api/auth/login")
       .send({ email: TEST_USER.email, password: TEST_USER.password });
 
-    refreshTokenCookie = getCookies(loginRes).find((c) =>
+    refreshTokenCookie = getCookies(loginRes).find(c =>
       c.startsWith("refreshToken=")
     )!;
   });
@@ -336,7 +326,7 @@ describe("POST /api/auth/logout", () => {
     const clearedCookies = getCookies(res);
     expect(
       clearedCookies.some(
-        (c) => c.startsWith("accessToken=;") || c.startsWith("accessToken=;")
+        c => c.startsWith("accessToken=;") || c.startsWith("accessToken=;")
       )
     ).toBe(true);
   });
@@ -375,7 +365,7 @@ describe("GET /api/auth/me", () => {
       .post("/api/auth/login")
       .send({ email: TEST_USER.email, password: TEST_USER.password });
 
-    accessTokenCookie = getCookies(loginRes).find((c) =>
+    accessTokenCookie = getCookies(loginRes).find(c =>
       c.startsWith("accessToken=")
     )!;
   });
