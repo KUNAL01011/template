@@ -1,9 +1,7 @@
 name: CI
-
-on:
+on: # 👈 FIX 1: Added the required 'on:' key
   push:
     branches: [main, develop]
-
   pull_request:
     branches: [main, develop]
 
@@ -11,39 +9,34 @@ jobs:
   lint-and-typecheck:
     name: Lint & Type Check
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
+      - name: Generate Prisma Client # 👈 FIX 2: Generate the Linux engine
+        run: npm --workspace backend exec prisma generate
       - name: Type check
         run: npm --workspace backend exec tsc -- --noEmit
-
       - name: Lint
         run: npm --workspace backend run lint
 
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
+      - name: Generate Prisma Client # 👈 FIX 2: Generate the Linux engine
+        run: npm --workspace backend exec prisma generate
       - name: Run unit tests
         run: npm --workspace backend exec vitest -- run tests/unit --coverage
         env:
@@ -55,7 +48,6 @@ jobs:
           DIRECT_URL: postgresql://noop/noop
           RESEND_API_KEY: re_test_noop
           OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4317
-
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
@@ -65,7 +57,6 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-
     services:
       postgres:
         image: postgres:16-alpine
@@ -80,24 +71,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
       - name: Install dependencies
         run: npm ci
-
-      - name: Push schema to test DB
-        run: npm --workspace backend exec prisma -- db push --skip-generate
+      - name: Push schema to test DB # 👈 FIX 3: Removed --skip-generate so the client generates automatically
+        run: npm --workspace backend exec prisma -- db push
         env:
           DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/transitops_test
           DIRECT_URL: postgresql://testuser:testpassword@localhost:5432/transitops_test
-
       - name: Run integration tests
         run: npm --workspace backend exec vitest -- run tests/integration
         env:
